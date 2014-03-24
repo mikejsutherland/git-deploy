@@ -82,6 +82,7 @@ git --git-dir=$rpath archive --format=tar --prefix=$rname/ $rtag |
     tar --directory=$dest -xvf -
 
 if [ $? == 0 ];
+then
     echo "Deployed release to: $dest/$rname";
 fi
 
