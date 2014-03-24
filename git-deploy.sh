@@ -25,65 +25,105 @@
 # THE SOFTWARE.
 #
 
-# base directory to deploy to, set below or with -d
-dest="/var/www/html";
+# set automatically
+rpath="";
+rname="";
+dest="";
 # repo tag to deploy, set below or with -t
 rtag="HEAD";
-# repo path determined automatically, override with -p
-rpath="";
-# repo name determined automatically, override with -n
-rname="";
+
 
 # determine the repo name and path
-if [[ ! -z $1 && -e $1 ]]
+if [[ ! -z "$1" && -e $1 ]]
 then
     # set the repo path
     rpath=$1;
+    # strip trailing slash if present
+    rpath=${rpath%*/}
+
+    if [[ -d "$rpath/.git" ]]
+    then
+        rpath="$rpath/.git";
+    fi
+
     # set the repo name
     rname=$1;
     # strip trailing slash if present
     rname=${rname%*/}
     # strip anything proceeding the repo name
     rname=${rname##*/}
-
-    # shift for optional getopts processing
-    shift 1;
 # show the usage info
 else
-    echo "$0 <repo> [-t <tag>] [-d <dest>]";
+    echo "Error repo not found" >&2;
+    echo "$0 <repo> <destination-dir> [-t <tag>]";
     exit;
 fi
 
+if [[ ! -z "$2" ]]
+then
+    # set the destination path
+    dest=$2;
+    # strip trailing slash if present
+    dest=${dest%*/}
+# show the usage info
+else
+    echo "Error destination not specified" >&2;
+    echo "$0 <repo> <destination-dir> [-t <tag>]";
+    exit;
+fi
+
+# shift for optional getopts processing
+shift 2;
+
 # process optional args
-while getopts "d:n:p:t:" opt;
+while getopts "t:" opt;
 do
     case $opt in
-        d)
-            dest=$OPTARG;
-            ;;
-        n)
-            rname=$OPTARG;
-            ;;
-        p)
-            rpath=$OPTARG;
-            ;;
         t)
             rtag=$OPTARG;
             ;;
         \?)
-            echo "Invalid option: -$OPTARG" >&2
+            echo "Invalid option: -$OPTARG" >&2;
             exit 1
             ;;
     esac
 done
 
-# run the git command
-git --git-dir=$rpath archive --format=tar --prefix=$rname/ $rtag | 
-    tar --directory=$dest -xvf -
+# display the deployment parameters and confirm
+echo "Repo: $rpath @ $rtag";
+echo "Dest: $dest";
 
-if [ $? == 0 ];
+echo
+read -r -p "Deploy? [y/N] " confirm
+echo
+
+if [[ $confirm =~ ^([yY][eE][sS]|[yY])$ ]]
 then
-    echo "Deployed release to: $dest/$rname";
-fi
+    # verify the requested tag exists
+    $(git --git-dir=$rpath show-ref --tags --head | grep -q $rtag)
+    if [ $? != 0 ]
+    then
+        echo "Repo does not contain the requested tag: $rtag" >&2;
+        echo "$0 <repo> <destination-dir> [-t <tag>]";
+        exit;
+    fi
 
-exit $?;
+    # create the dest directory if necessary
+    if [[ ! -d $dest ]]
+    then
+        mkdir -p "$dest";
+    fi
+
+    # run the git command
+    git --git-dir=$rpath archive --format=tar --prefix=./ $rtag \
+    | tar --directory=$dest -xf -
+
+    if [ $? == 0 ];
+    then
+        echo "Successfully deployed $rname @$rtag to $dest";
+    fi
+
+    exit $?;
+else
+    echo "aborted...";
+fi
