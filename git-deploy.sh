@@ -33,7 +33,7 @@ dest="";
 rtag="HEAD";
 
 function usage () {
-    echo "$0 <repo> <destination-dir> [-t <tag>]";
+    echo "${0##*/} <repo> <destination-dir> [-t <tag>]";
 }
 
 
