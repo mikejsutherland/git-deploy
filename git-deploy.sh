@@ -32,6 +32,10 @@ dest="";
 # repo tag to deploy, set below or with -t
 rtag="HEAD";
 
+function usage () {
+    echo "$0 <repo> <destination-dir> [-t <tag>]";
+}
+
 
 # determine the repo name and path
 if [[ ! -z "$1" && -e $1 ]]
@@ -41,6 +45,7 @@ then
     # strip trailing slash if present
     rpath=${rpath%*/}
 
+    # update the repo path if local
     if [[ -d "$rpath/.git" ]]
     then
         rpath="$rpath/.git";
@@ -52,11 +57,10 @@ then
     rname=${rname%*/}
     # strip anything proceeding the repo name
     rname=${rname##*/}
-# show the usage info
 else
-    echo "Error repo not found" >&2;
-    echo "$0 <repo> <destination-dir> [-t <tag>]";
-    exit;
+    echo "Error repository not found" >&2;
+    usage;
+    exit 1;
 fi
 
 if [[ ! -z "$2" ]]
@@ -65,11 +69,10 @@ then
     dest=$2;
     # strip trailing slash if present
     dest=${dest%*/}
-# show the usage info
 else
     echo "Error destination not specified" >&2;
-    echo "$0 <repo> <destination-dir> [-t <tag>]";
-    exit;
+    usage;
+    exit 1;
 fi
 
 # shift for optional getopts processing
@@ -83,7 +86,8 @@ do
             rtag=$OPTARG;
             ;;
         \?)
-            echo "Invalid option: -$OPTARG" >&2;
+            echo "Error invalid option: -$OPTARG" >&2;
+            usage;
             exit 1
             ;;
     esac
@@ -100,12 +104,12 @@ echo
 if [[ $confirm =~ ^([yY][eE][sS]|[yY])$ ]]
 then
     # verify the requested tag exists
-    $(git --git-dir=$rpath show-ref --tags --head | grep -q $rtag)
+    $(git --git-dir=$rpath show-ref --head | grep -q $rtag)
     if [ $? != 0 ]
     then
-        echo "Repo does not contain the requested tag: $rtag" >&2;
-        echo "$0 <repo> <destination-dir> [-t <tag>]";
-        exit;
+        echo "Error tag not found in repository" >&2;
+        usage;
+        exit 1;
     fi
 
     # create the dest directory if necessary
@@ -125,5 +129,5 @@ then
 
     exit $?;
 else
-    echo "aborted...";
+    echo "Aborted...";
 fi
